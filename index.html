@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canales Deportivos DaddyLive con Horarios</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .channel-counter {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 18px;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .sport-category {
+            margin-top: 30px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4CAF50;
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+        }
+        .subcategory {
+            margin: 15px 0 5px 20px;
+            font-size: 18px;
+            color: #555;
+            display: flex;
+            align-items: center;
+        }
+        .subcategory::before {
+            content: "▶";
+            margin-right: 8px;
+            color: #4CAF50;
+        }
+        .channel-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0 8px 30px;
+            gap: 10px;
+        }
+        .channel-time {
+            font-family: monospace;
+            font-weight: bold;
+            color: #d32f2f;
+            min-width: 50px;
+            text-align: right;
+        }
+        .channel-btn {
+            padding: 8px 15px;
+            background-color: #f0f8ff;
+            border: 1px solid #4CAF50;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+        .channel-btn:hover {
+            background-color: #e0f0ff;
+            transform: scale(1.02);
+        }
+        .channel-name {
+            font-weight: bold;
+        }
+        .channel-name-red {
+            color: red;
+            font-weight: bold;
+        }
+        .channel-number {
+            margin-left: 5px;
+            color: #666;
+            font-family: monospace;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        .error {
+            color: #d32f2f;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        .player-container {
+            margin-top: 30px;
+            display: none;
+        }
+        #videoPlayer {
+            width: 100%;
+            height: 500px;
+            background-color: #000;
+            border-radius: 4px;
+        }
+        .player-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .player-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .close-player {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .search-box {
+            margin: 20px 0;
+            text-align: center;
+        }
+        #searchInput {
+            padding: 10px;
+            width: 60%;
+            max-width: 500px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .sport-icon {
+            margin-right: 8px;
+            font-size: 18px;
+        }
+        .active {
+            background-color: #3a7bd5 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Canales Deportivos DaddyLive con Horarios</h1>
+        <div id="channelCounter" class="channel-counter">Canales detectados: 0</div>
+        
+        <div class="controls">
+            <button id="fetchBtn">Cargar Todos los Canales</button>
+            <button id="sportsOnlyBtn">Mostrar Solo Deportes</button>
+        </div>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Buscar canales deportivos...">
+        </div>
+        
+        <div id="loading" class="loading">
+            Cargando canales desde DaddyLive, por favor espera...
+        </div>
+        
+        <div id="error" class="error"></div>
+        
+        <div id="channelsContainer"></div>
+        
+        <div id="playerContainer" class="player-container">
+            <div class="player-header">
+                <div id="playerTitle" class="player-title"></div>
+                <button id="closePlayer" class="close-player">Cerrar</button>
+            </div>
+            <iframe id="videoPlayer" frameborder="0" allowfullscreen></iframe>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fetchBtn = document.getElementById('fetchBtn');
+            const sportsOnlyBtn = document.getElementById('sportsOnlyBtn');
+            const channelsContainer = document.getElementById('channelsContainer');
+            const loading = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const playerContainer = document.getElementById('playerContainer');
+            const videoPlayer = document.getElementById('videoPlayer');
+            const playerTitle = document.getElementById('playerTitle');
+            const closePlayer = document.getElementById('closePlayer');
+            const searchInput = document.getElementById('searchInput');
+            const channelCounter = document.getElementById('channelCounter');
+            
+            let allChannels = [];
+            
+            // Función para actualizar el contador de canales
+            function updateChannelCounter(count) {
+                channelCounter.textContent = `Canales detectados: ${count}`;
+            }
+            
+            // Función para extraer canales y horarios
+            function extractChannels(htmlContent) {
+                try {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(htmlContent, 'text/html');
+                    const elements = doc.querySelectorAll('*');
+                    const channels = [];
+                    const uniqueKeys = new Set();
+                    
+                    elements.forEach(element => {
+                        const textContent = element.textContent.trim();
+                        
+                        // Buscar patrón de canal con horario: XX:XX Nombre (CH-XXX)
+                        const channelMatch = textContent.match(/(\d{2}:\d{2})?\s*(.+?)\s*\(CH-(\d+)\)/i);
+                        
+                        if (channelMatch) {
+                            const time = channelMatch[1] || '';
+                            let nameWithFormatting = element.innerHTML;
+                            const number = channelMatch[3];
+                            
+                            // Limpiar el nombre pero conservar el formato
+                            nameWithFormatting = nameWithFormatting.replace(/<script.*?<\/script>/g, '')
+                                                                   .replace(/<style.*?<\/style>/g, '')
+                                                                   .replace(/<iframe.*?<\/iframe>/g, '')
+                                                                   .replace(/<img.*?>/g, '');
+                            
+                            // Extraer solo la parte del nombre del canal
+                            const nameStart = nameWithFormatting.indexOf(channelMatch[2].trim());
+                            const nameEnd = nameWithFormatting.indexOf(`(CH-${number})`);
+                            if (nameStart >= 0 && nameEnd > nameStart) {
+                                nameWithFormatting = nameWithFormatting.substring(nameStart, nameEnd).trim();
+                            } else {
+                                nameWithFormatting = channelMatch[2].trim();
+                            }
+                            
+                            const key = `${nameWithFormatting}-${number}`;
+                            
+                            if (!uniqueKeys.has(key)) {
+                                uniqueKeys.add(key);
+                                channels.push({
+                                    key: key,
+                                    name: nameWithFormatting,
+                                    number: number,
+                                    time: time,
+                                    rawText: textContent,
+                                    category: determineCategory(textContent),
+                                    subcategory: determineSubcategory(textContent)
+                                });
+                            }
+                        }
+                    });
+                    
+                    return channels;
+                } catch (error) {
+                    console.error('Error al extraer canales:', error);
+                    return [];
+                }
+            }
+            
+            // Funciones para determinar categoría y subcategoría
+            function determineCategory(channelText) {
+                const cleanText = channelText.toLowerCase();
+                
+                if (cleanText.includes('fútbol') || cleanText.includes('futbol') || cleanText.includes('soccer')) {
+                    return 'Fútbol';
+                } else if (cleanText.includes('baloncesto') || cleanText.includes('basketball') || cleanText.includes('nba')) {
+                    return 'Baloncesto';
+                } else if (cleanText.includes('tenis') || cleanText.includes('wimbledon') || cleanText.includes('atp') || cleanText.includes('wta')) {
+                    return 'Tenis';
+                } else if (cleanText.includes('motor') || cleanText.includes('fórmula') || cleanText.includes('f1') || cleanText.includes('motogp')) {
+                    return 'Motor';
+                } else if (cleanText.includes('beisbol') || cleanText.includes('béisbol') || cleanText.includes('mlb')) {
+                    return 'Béisbol';
+                } else if (cleanText.includes('deport') || cleanText.includes('sport') || cleanText.includes('deporte')) {
+                    return 'Deportes Varios';
+                } else {
+                    return 'Otros Canales';
+                }
+            }
+            
+            function determineSubcategory(channelText) {
+                const cleanText = channelText.toLowerCase();
+                
+                if (cleanText.includes('liga') || cleanText.includes('laliga') || cleanText.includes('la liga')) {
+                    return 'Liga Española';
+                } else if (cleanText.includes('premier') || cleanText.includes('epl')) {
+                    return 'Premier League';
+                } else if (cleanText.includes('champions') || cleanText.includes('uefa')) {
+                    return 'Champions League';
+                } else if (cleanText.includes('bundesliga')) {
+                    return 'Bundesliga';
+                } else if (cleanText.includes('serie a') || cleanText.includes('seriea')) {
+                    return 'Serie A';
+                } else if (cleanText.includes('ligue 1') || cleanText.includes('ligue1')) {
+                    return 'Ligue 1';
+                } else if (cleanText.includes('nba')) {
+                    return 'NBA';
+                } else if (cleanText.includes('euroleague')) {
+                    return 'Euroleague';
+                } else if (cleanText.includes('fórmula 1') || cleanText.includes('formula 1') || cleanText.includes('f1')) {
+                    return 'Fórmula 1';
+                } else if (cleanText.includes('motogp')) {
+                    return 'MotoGP';
+                } else if (cleanText.includes('mlb')) {
+                    return 'MLB';
+                }
+                
+                return 'General';
+            }
+            
+            // Función para mostrar canales organizados con horarios
+            function displayChannels(channels, sportsOnly = false) {
+                channelsContainer.innerHTML = '';
+                
+                if (channels.length === 0) {
+                    channelsContainer.innerHTML = '<div class="error">No se encontraron canales.</div>';
+                    updateChannelCounter(0);
+                    return;
+                }
+                
+                // Filtrar solo deportes si es necesario
+                if (sportsOnly) {
+                    channels = channels.filter(ch => 
+                        ch.category !== 'Otros Canales' && 
+                        !ch.category.includes('Noticias') &&
+                        !ch.category.includes('Cine') &&
+                        !ch.category.includes('Infantil')
+                    );
+                }
+                
+                // Actualizar contador
+                updateChannelCounter(channels.length);
+                
+                // Agrupar por categoría y subcategoría
+                const categories = {};
+                channels.forEach(channel => {
+                    if (!categories[channel.category]) {
+                        categories[channel.category] = {};
+                    }
+                    if (!categories[channel.category][channel.subcategory]) {
+                        categories[channel.category][channel.subcategory] = [];
+                    }
+                    categories[channel.category][channel.subcategory].push(channel);
+                });
+                
+                // Mostrar cada categoría y subcategoría
+                Object.keys(categories).sort().forEach(category => {
+                    const categorySection = document.createElement('div');
+                    
+                    // Encabezado de categoría
+                    const header = document.createElement('div');
+                    header.className = 'sport-category';
+                    
+                    // Añadir icono según categoría
+                    let icon = '🏅';
+                    if (category.includes('Fútbol')) icon = '⚽';
+                    else if (category.includes('Baloncesto')) icon = '🏀';
+                    else if (category.includes('Tenis')) icon = '🎾';
+                    else if (category.includes('Motor')) icon = '🏁';
+                    else if (category.includes('Béisbol')) icon = '⚾';
+                    
+                    header.innerHTML = `<span class="sport-icon">${icon}</span> ${category}`;
+                    categorySection.appendChild(header);
+                    
+                    // Mostrar subcategorías
+                    Object.keys(categories[category]).sort().forEach(subcategory => {
+                        if (subcategory !== 'General') {
+                            const subcatEl = document.createElement('div');
+                            subcatEl.className = 'subcategory';
+                            subcatEl.textContent = subcategory;
+                            categorySection.appendChild(subcatEl);
+                        }
+                        
+                        // Mostrar canales con horarios
+                        categories[category][subcategory].forEach(channel => {
+                            const channelItem = document.createElement('div');
+                            channelItem.className = 'channel-item';
+                            
+                            // Mostrar horario si existe
+                            if (channel.time) {
+                                const timeEl = document.createElement('div');
+                                timeEl.className = 'channel-time';
+                                timeEl.textContent = channel.time;
+                                channelItem.appendChild(timeEl);
+                            } else {
+                                // Espacio vacío para alinear cuando no hay horario
+                                const emptyTime = document.createElement('div');
+                                emptyTime.className = 'channel-time';
+                                emptyTime.textContent = '';
+                                channelItem.appendChild(emptyTime);
+                            }
+                            
+                            // Botón del canal
+                            const btn = document.createElement('button');
+                            btn.className = 'channel-btn';
+                            btn.innerHTML = `${channel.name} | <span class="channel-number">CH-${channel.number}</span>`;
+                            
+                            btn.addEventListener('click', function() {
+                                playChannel(channel.name, channel.number);
+                            });
+                            
+                            channelItem.appendChild(btn);
+                            categorySection.appendChild(channelItem);
+                        });
+                    });
+                    
+                    channelsContainer.appendChild(categorySection);
+                });
+            }
+            
+            function filterChannels() {
+                const searchTerm = searchInput.value.toLowerCase();
+                if (!searchTerm) {
+                    displayChannels(allChannels, sportsOnlyBtn.classList.contains('active'));
+                    return;
+                }
+                
+                const filtered = allChannels.filter(channel => {
+                    const cleanName = channel.rawText.toLowerCase();
+                    return cleanName.includes(searchTerm) || 
+                           channel.number.includes(searchTerm) ||
+                           channel.category.toLowerCase().includes(searchTerm) ||
+                           channel.subcategory.toLowerCase().includes(searchTerm) ||
+                           (channel.time && channel.time.includes(searchTerm));
+                });
+                
+                displayChannels(filtered, sportsOnlyBtn.classList.contains('active'));
+            }
+            
+            function playChannel(name, number) {
+                const streamUrl = `https://stream2wetch.top/embed/stream-${number}.php`;
+                const cleanName = name.replace(/<[^>]*>/g, '');
+                playerTitle.innerHTML = `${cleanName} (CH-${number})`;
+                videoPlayer.src = streamUrl;
+                playerContainer.style.display = 'block';
+                playerContainer.scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            closePlayer.addEventListener('click', function() {
+                videoPlayer.src = '';
+                playerContainer.style.display = 'none';
+            });
+            
+            searchInput.addEventListener('input', filterChannels);
+            
+            sportsOnlyBtn.addEventListener('click', function() {
+                this.classList.toggle('active');
+                if (this.classList.contains('active')) {
+                    this.textContent = 'Mostrar Todos los Canales';
+                } else {
+                    this.textContent = 'Mostrar Solo Deportes';
+                }
+                filterChannels();
+            });
+            
+            fetchBtn.addEventListener('click', function() {
+                loading.style.display = 'block';
+                errorDiv.textContent = '';
+                channelsContainer.innerHTML = '';
+                playerContainer.style.display = 'none';
+                updateChannelCounter(0);
+                
+                const targetUrl = 'https://daddylivehd1.click/';
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                
+                fetch(proxyUrl)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Error en la conexión');
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.contents) {
+                            allChannels = extractChannels(data.contents);
+                            displayChannels(allChannels, sportsOnlyBtn.classList.contains('active'));
+                        } else {
+                            throw new Error('No se pudo obtener el contenido de la página');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        errorDiv.textContent = `Error: ${error.message || 'No se pudo cargar la página'}`;
+                    })
+                    .finally(() => {
+                        loading.style.display = 'none';
+                    });
+            });
+        });
+    </script>
+</body>
+</html>
